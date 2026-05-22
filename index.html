@@ -1,0 +1,663 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#f8f9fc;min-height:100vh}
+.app{max-width:900px;margin:0 auto;padding:2rem 1.5rem}
+.header{display:flex;align-items:center;justify-content:space-between;padding-bottom:1.5rem;border-bottom:1px solid #e8eaf0;margin-bottom:2.5rem}
+.logo-area{display:flex;align-items:center;gap:10px}
+.logo-text{font-size:18px;font-weight:800;letter-spacing:-0.5px;color:#0a1628;font-family:'DM Sans',sans-serif}
+.logo-heart{width:28px;height:28px}
+.badge{font-size:11px;font-weight:600;letter-spacing:1.5px;color:#3355ff;text-transform:uppercase}
+.hero{margin-bottom:2.5rem}
+.hero h1{font-size:clamp(2rem,5vw,3.5rem);font-weight:800;line-height:1.1;color:#0a1628;letter-spacing:-1.5px;margin-bottom:.75rem}
+.hero p{color:#5a6478;font-size:15px;line-height:1.6;max-width:560px}
+.upload-zone{border:2px dashed #d0d5e8;border-radius:16px;padding:3rem 2rem;text-align:center;cursor:pointer;transition:all .2s;background:#fff;margin-bottom:1.25rem;position:relative}
+.upload-zone:hover,.upload-zone.drag{border-color:#3355ff;background:#f0f3ff}
+.upload-zone.has-file{border-color:#22c97a;border-style:solid;background:#f0fff7}
+.upload-icon{width:44px;height:44px;margin:0 auto 1rem;color:#3355ff;display:flex;align-items:center;justify-content:center}
+.upload-zone.has-file .upload-icon{color:#22c97a}
+.upload-title{font-size:15px;font-weight:600;color:#0a1628;margin-bottom:.25rem}
+.upload-sub{font-size:13px;color:#8892a4}
+.upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.file-name{font-size:13px;font-weight:600;color:#22c97a;margin-top:.5rem}
+.form-group{margin-bottom:1.25rem}
+.form-label{display:block;font-size:13px;font-weight:600;color:#0a1628;margin-bottom:.5rem;letter-spacing:.2px}
+.form-sub{font-size:12px;color:#8892a4;margin-top:.25rem}
+.form-input{width:100%;padding:12px 16px;border:1.5px solid #e0e4f0;border-radius:10px;font-size:15px;font-family:'DM Sans',sans-serif;color:#0a1628;background:#fff;transition:border-color .2s;outline:none}
+.form-input:focus{border-color:#3355ff}
+.form-input::placeholder{color:#b0b8cc}
+.btn-generate{width:100%;padding:16px;background:#3355ff;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif;letter-spacing:.3px}
+.btn-generate:hover:not(:disabled){background:#1a3de0;transform:translateY(-1px)}
+.btn-generate:disabled{background:#b0bcda;cursor:not-allowed;transform:none}
+.progress-wrap{margin-top:1.5rem;display:none}
+.progress-label{font-size:13px;color:#5a6478;margin-bottom:.5rem;font-weight:500}
+.progress-bar{height:4px;background:#e8eaf0;border-radius:99px;overflow:hidden}
+.progress-fill{height:100%;background:#3355ff;border-radius:99px;transition:width .4s ease;width:0%}
+.status{font-size:13px;color:#3355ff;margin-top:.5rem;font-weight:500;min-height:18px}
+.report-pages{display:none;margin-top:2rem}
+.page{width:100%;aspect-ratio:1280/720;background:#fff;border:1px solid #e0e4f0;border-radius:12px;overflow:hidden;position:relative;margin-bottom:16px;page-break-after:always}
+.page-inner{width:1280px;height:720px;transform-origin:top left;position:relative;padding:40px 56px;display:flex;flex-direction:column}
+.ph{display:flex;align-items:center;justify-content:space-between;padding-bottom:16px;border-bottom:1.5px solid #e8eaf0;margin-bottom:24px;flex-shrink:0}
+.ph-logo{font-size:15px;font-weight:800;letter-spacing:-0.5px;color:#0a1628}
+.ph-company{font-size:13px;font-weight:700;letter-spacing:1.5px;color:#0a1628;text-transform:uppercase}
+.pf{display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid #e8eaf0;margin-top:auto;flex-shrink:0}
+.pf-section{font-size:10px;color:#3355ff;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.pf-num{font-size:10px;color:#8892a4;font-weight:600}
+.pg-content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.btn-download{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:#0a1628;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:background .2s;font-family:'DM Sans',sans-serif;margin-bottom:1rem}
+.btn-download:hover{background:#1a2a4a}
+.tip{background:#f0f3ff;border-radius:10px;padding:12px 16px;font-size:13px;color:#3355ff;font-weight:500;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<div class="app">
+  <div class="header">
+    <div class="logo-area">
+      <svg class="logo-heart" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="13" stroke="#0a1628" stroke-width="1.5"/>
+        <path d="M9 12.5c0-1.8 1.3-3 2.8-3s2.2.9 2.2.9 .7-.9 2.2-.9C17.7 9.5 19 10.7 19 12.5c0 3.5-5 6.5-5 6.5s-5-3-5-6z" stroke="#0a1628" stroke-width="1.3" fill="none"/>
+      </svg>
+      <span class="logo-text">PIPELOVERS</span>
+    </div>
+    <span class="badge">Relatório Enterprise</span>
+  </div>
+
+  <div class="hero">
+    <p class="badge" style="margin-bottom:.75rem">Gerador de Relatório</p>
+    <h1>Gerador de<br>Consumo de Aulas</h1>
+    <p>Envie a planilha exportada do PipeLovers e receba um PDF com sumário executivo, análise temporal, ranking mensal e detalhamento por aluno.</p>
+  </div>
+
+  <div class="upload-zone" id="dropzone">
+    <div class="upload-icon" id="upload-icon">
+      <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+        <path d="M22 28V16m0 0l-5 5m5-5l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 32h20M8 22c0-7.7 6.3-14 14-14s14 6.3 14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="upload-title">Arraste sua planilha aqui ou clique para selecionar</div>
+    <div class="upload-sub">Aceita .xlsx, .xls e .csv · até 20 MB</div>
+    <div class="file-name" id="file-name"></div>
+    <input type="file" id="file-input" accept=".xlsx,.xls,.csv">
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="company-name">Qual o nome da empresa?</label>
+    <input type="text" class="form-input" id="company-name" placeholder="Ex.: Conta Simples">
+    <p class="form-sub">Aparecerá no topo de cada slide e na capa do PDF.</p>
+  </div>
+
+  <button class="btn-generate" id="btn-gen" disabled onclick="generateReport()">Gerar relatório</button>
+
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-label" id="progress-label">Processando planilha...</div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="status" id="status-msg"></div>
+  </div>
+
+  <div class="report-pages" id="report-pages">
+    <div class="tip">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#3355ff" stroke-width="1.2"/><path d="M8 7v5M8 5v.5" stroke="#3355ff" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Prévia gerada com sucesso! Clique para baixar o PDF completo.
+    </div>
+    <button class="btn-download" id="btn-dl" onclick="downloadPDF()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0l-3-3m3 3l3-3M2 12h12" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Baixar PDF
+    </button>
+    <div id="pages-container"></div>
+  </div>
+</div>
+
+<script>
+const BLUE='#3355ff',DARK='#0a1628',GRAY='#f5f6fa',MUTED='#8892a4',BORDER='#e8eaf0';
+let parsedData=null, companyName='', pdfPages=[];
+
+document.getElementById('file-input').addEventListener('change',function(e){
+  const f=e.target.files[0];if(!f)return;
+  document.getElementById('file-name').textContent=f.name;
+  document.getElementById('dropzone').classList.add('has-file');
+  readFile(f);
+});
+
+const dz=document.getElementById('dropzone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop',e=>{
+  e.preventDefault();dz.classList.remove('drag');
+  const f=e.dataTransfer.files[0];if(!f)return;
+  document.getElementById('file-name').textContent=f.name;
+  dz.classList.add('has-file');
+  readFile(f);
+});
+
+document.getElementById('company-name').addEventListener('input',checkReady);
+
+function checkReady(){
+  const cn=document.getElementById('company-name').value.trim();
+  document.getElementById('btn-gen').disabled=!(parsedData&&cn);
+}
+
+function readFile(f){
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      const data=new Uint8Array(ev.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      let rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      // detect separator for CSV-like
+      if(f.name.endsWith('.csv')){
+        const raw=new TextDecoder('utf-8').decode(data);
+        rows=parseCSVSemicolon(raw);
+      }
+      parsedData=processRows(rows);
+      checkReady();
+    }catch(err){alert('Erro ao ler arquivo: '+err.message);}
+  };
+  reader.readAsArrayBuffer(f);
+}
+
+function parseCSVSemicolon(raw){
+  const lines=raw.split('\n').filter(l=>l.trim());
+  return lines.map(line=>{
+    const cols=[];let cur='',inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){inQ=!inQ;}
+      else if(c===';'&&!inQ){cols.push(cur.trim());cur='';}
+      else cur+=c;
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+function parseDate(s){
+  if(!s||s==='-'||s==='')return null;
+  const m=String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(!m)return null;
+  return new Date(parseInt(m[3]),parseInt(m[2])-1,parseInt(m[1]));
+}
+
+function fmtDate(d){
+  if(!d)return '';
+  return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+}
+
+function monthKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function monthLabel(k){
+  const [y,m]=k.split('-');
+  const names=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  return names[parseInt(m)-1]+' '+y;
+}
+
+function weekKey(d){
+  const t=new Date(d);t.setHours(0,0,0,0);
+  const day=t.getDay();
+  const sun=new Date(t);sun.setDate(t.getDate()-day);
+  const sat=new Date(sun);sat.setDate(sun.getDate()+6);
+  return fmtDate(sun)+'|'+fmtDate(sat);
+}
+
+function processRows(rows){
+  if(!rows||rows.length<2)throw new Error('Planilha vazia');
+  const hdr=rows[0].map(h=>String(h).trim().replace(/^\uFEFF/,''));
+  const idx=n=>hdr.findIndex(h=>h.toLowerCase()===n.toLowerCase());
+  const iNome=idx('Nome'),iEmail=idx('Email'),iConteudo=idx('Conteúdo'),iData=idx('Data da compra');
+  if(iNome<0||iEmail<0||iConteudo<0||iData<0)throw new Error('Colunas não encontradas. Verifique: Nome, Email, Conteúdo, Data da compra');
+  
+  const records=[];
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];
+    const email=String(r[iEmail]||'').trim().toLowerCase();
+    const nome=String(r[iNome]||'').trim();
+    const conteudo=String(r[iConteudo]||'').trim();
+    const dataBruta=String(r[iData]||'').trim();
+    const data=parseDate(dataBruta);
+    if(!email||!data)continue;
+    records.push({email,nome,conteudo,data});
+  }
+  if(!records.length)throw new Error('Nenhuma linha válida encontrada');
+  
+  // Metrics
+  const totalConsumos=records.length;
+  const emailMap={};
+  records.forEach(r=>{if(!emailMap[r.email])emailMap[r.email]={nome:r.nome,aulas:[]};emailMap[r.email].aulas.push({conteudo:r.conteudo,data:r.data});});
+  const totalAlunos=Object.keys(emailMap).length;
+  const datas=records.map(r=>r.data).sort((a,b)=>a-b);
+  const dataMin=datas[0],dataMax=datas[datas.length-1];
+  
+  // Monthly
+  const monthMap={};
+  records.forEach(r=>{const k=monthKey(r.data);if(!monthMap[k])monthMap[k]=0;monthMap[k]++;});
+  const months=Object.keys(monthMap).sort();
+  const maxMonth=months.reduce((a,b)=>monthMap[a]>=monthMap[b]?a:b);
+  
+  // Weekly
+  const weekMap={};
+  records.forEach(r=>{const k=weekKey(r.data);if(!weekMap[k])weekMap[k]=0;weekMap[k]++;});
+  const weeks=Object.keys(weekMap).sort((a,b)=>{const da=parseDate(a.split('|')[0]),db=parseDate(b.split('|')[0]);return da-db;});
+  const maxWeek=weeks.reduce((a,b)=>weekMap[a]>=weekMap[b]?a:b);
+  
+  // Top 3 by month
+  const top3={}; 
+  months.forEach(mk=>{
+    const byEmail={};
+    records.filter(r=>monthKey(r.data)===mk).forEach(r=>{if(!byEmail[r.email])byEmail[r.email]={nome:r.nome,count:0};byEmail[r.email].count++;});
+    top3[mk]=Object.entries(byEmail).map(([e,v])=>({email:e,...v})).sort((a,b)=>b.count-a.count).slice(0,3);
+  });
+  
+  // Students sorted by total
+  const students=Object.entries(emailMap).map(([email,v])=>({email,nome:v.nome,aulas:v.aulas.sort((a,b)=>a.data-b.data),total:v.aulas.length})).sort((a,b)=>b.total-a.total);
+  
+  return{totalConsumos,totalAlunos,dataMin,dataMax,months,monthMap,maxMonth,weeks,weekMap,maxWeek,top3,students};
+}
+
+function setProgress(pct,msg){
+  document.getElementById('progress-fill').style.width=pct+'%';
+  document.getElementById('status-msg').textContent=msg;
+}
+
+async function generateReport(){
+  if(!parsedData)return;
+  companyName=document.getElementById('company-name').value.trim();
+  document.getElementById('progress-wrap').style.display='block';
+  document.getElementById('report-pages').style.display='none';
+  document.getElementById('btn-gen').disabled=true;
+  pdfPages=[];
+  
+  setProgress(5,'Calculando métricas...');
+  await sleep(100);
+  
+  const container=document.getElementById('pages-container');
+  container.innerHTML='';
+  
+  const d=parsedData;
+  const totalPages=4+Math.ceil(d.students.length/5)+1;
+  
+  setProgress(15,'Gerando capa...');
+  await sleep(100);
+  const p1=buildPage1(d,companyName,totalPages);
+  container.appendChild(p1);
+  scalePageEl(p1);
+  pdfPages.push(p1);
+  
+  setProgress(30,'Gerando sumário executivo...');
+  await sleep(100);
+  const p2=buildPage2(d,companyName,totalPages);
+  container.appendChild(p2);scalePageEl(p2);pdfPages.push(p2);
+  
+  setProgress(45,'Gerando análise temporal...');
+  await sleep(100);
+  const p3=buildPage3(d,companyName,totalPages);
+  container.appendChild(p3);scalePageEl(p3);pdfPages.push(p3);
+  
+  setProgress(55,'Gerando ranking por mês...');
+  await sleep(100);
+  const p4=buildPage4(d,companyName,totalPages);
+  container.appendChild(p4);scalePageEl(p4);pdfPages.push(p4);
+  
+  const studChunks=chunkStudents(d.students,d);
+  for(let i=0;i<studChunks.length;i++){
+    setProgress(60+Math.round(35*(i+1)/studChunks.length),'Gerando detalhamento individual '+(i+1)+' de '+studChunks.length+'...');
+    await sleep(80);
+    const pN=buildPageDetail(studChunks[i],i+1,studChunks.length,4+i+1,totalPages,companyName,d);
+    container.appendChild(pN);scalePageEl(pN);pdfPages.push(pN);
+  }
+  
+  setProgress(98,'Finalizando prévia...');
+  await sleep(200);
+  setProgress(100,'Relatório pronto!');
+  document.getElementById('report-pages').style.display='block';
+  document.getElementById('btn-gen').disabled=false;
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function chunkStudents(students){
+  // Each student takes ~1+aulas*18px in the detail page
+  // We'll fit approx 5 per page visually
+  const pages=[];let cur=[];
+  students.forEach(s=>{cur.push(s);if(cur.length>=5){pages.push(cur);cur=[];}});
+  if(cur.length)pages.push(cur);
+  return pages;
+}
+
+function buildHeader(company){
+  return `<div class="ph"><span class="ph-logo" style="font-size:14px;font-weight:800;letter-spacing:-0.5px;color:${DARK}">PIPELOVERS ♡</span><span class="ph-company" style="font-size:11px;font-weight:700;letter-spacing:2px;color:${DARK};text-transform:uppercase">${company.toUpperCase()}</span></div>`;
+}
+function buildFooter(sectionLabel,pageNum,totalPages){
+  return `<div class="pf"><span class="pf-section" style="font-size:9px;color:${BLUE};font-weight:700;letter-spacing:1px;text-transform:uppercase">${sectionLabel}</span><span class="pf-num" style="font-size:9px;color:${MUTED};font-weight:600">${String(pageNum).padStart(2,'0')} / ${String(totalPages).padStart(2,'0')}</span></div>`;
+}
+
+function makePage(innerHTML){
+  const wrap=document.createElement('div');
+  wrap.className='page';
+  wrap.style.cssText='width:100%;background:#fff;border:1px solid #e0e4f0;border-radius:12px;overflow:hidden;position:relative;margin-bottom:16px;';
+  const inner=document.createElement('div');
+  inner.style.cssText=`width:1280px;height:720px;transform-origin:top left;position:relative;padding:40px 56px;display:flex;flex-direction:column;font-family:'DM Sans',sans-serif;`;
+  inner.innerHTML=innerHTML;
+  wrap.appendChild(inner);
+  return wrap;
+}
+
+function scalePageEl(wrap){
+  const inner=wrap.firstChild;
+  const w=wrap.offsetWidth||800;
+  const scale=w/1280;
+  inner.style.transform=`scale(${scale})`;
+  wrap.style.height=(720*scale)+'px';
+}
+
+function buildPage1(d,company,total){
+  const per=`${String(d.dataMin.getDate()).padStart(2,'0')}/${String(d.dataMin.getMonth()+1).padStart(2,'0')} - ${String(d.dataMax.getDate()).padStart(2,'0')}/${String(d.dataMax.getMonth()+1).padStart(2,'0')}/${d.dataMax.getFullYear()}`;
+  return makePage(`
+    ${buildHeader(company)}
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center">
+      <div style="font-size:10px;font-weight:700;letter-spacing:2px;color:${BLUE};text-transform:uppercase;margin-bottom:16px">RELATÓRIO ENTERPRISE · 01 / ${String(total).padStart(2,'0')}</div>
+      <h1 style="font-size:80px;font-weight:800;line-height:1;color:${DARK};letter-spacing:-3px;margin-bottom:12px">Consumo<br>de Aulas</h1>
+      <div style="font-size:22px;font-weight:700;color:${BLUE};margin-bottom:12px">${company} × PipeLovers</div>
+      <p style="font-size:13px;color:#5a6478;max-width:520px;line-height:1.6">Análise consolidada de adesão à plataforma, ranking de alunos e detalhamento individual de consumo no período de ${fmtDate(d.dataMin)} a ${fmtDate(d.dataMax)}.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0;border-top:1.5px solid ${BORDER};padding-top:20px">
+      <div style="padding-right:24px;border-right:1px solid ${BORDER}">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${MUTED};text-transform:uppercase;margin-bottom:6px">PERÍODO</div>
+        <div style="font-size:20px;font-weight:800;color:${DARK}">${per}</div>
+      </div>
+      <div style="padding:0 24px;border-right:1px solid ${BORDER}">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${MUTED};text-transform:uppercase;margin-bottom:6px">CONSUMOS TOTAIS</div>
+        <div style="font-size:20px;font-weight:800;color:${BLUE}">${d.totalConsumos}</div>
+      </div>
+      <div style="padding:0 24px;border-right:1px solid ${BORDER}">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${MUTED};text-transform:uppercase;margin-bottom:6px">ALUNOS ATIVOS</div>
+        <div style="font-size:20px;font-weight:800;color:${BLUE}">${d.totalAlunos}</div>
+      </div>
+      <div style="padding-left:24px;display:flex;align-items:center;justify-content:flex-end">
+        <span style="font-size:11px;color:${MUTED}">${fmtDate(new Date())}</span>
+      </div>
+    </div>
+    ${buildFooter('','','')}
+  `);
+}
+
+function buildPage2(d,company,total){
+  const maxM=d.maxMonth;
+  const monthCards=d.months.map(mk=>{
+    const isMax=mk===maxM;
+    const pct=Math.round(d.monthMap[mk]/d.totalConsumos*100);
+    const bg=isMax?BLUE:GRAY;
+    const tc=isMax?'#fff':DARK;
+    const sc=isMax?'rgba(255,255,255,0.8)':MUTED;
+    const bar=isMax?'rgba(255,255,255,0.4)':'#dde2f0';
+    const fill=isMax?'rgba(255,255,255,0.9)':BLUE;
+    return `<div style="background:${bg};border-radius:12px;padding:16px 18px;">
+      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${sc};text-transform:uppercase;margin-bottom:4px">${monthLabel(mk).toUpperCase()}</div>
+      <div style="font-size:32px;font-weight:800;color:${tc};line-height:1">${d.monthMap[mk]}</div>
+      <div style="font-size:10px;color:${sc};margin:4px 0 8px">${isMax?'consumos · maior mês':'consumos'}</div>
+      <div style="height:3px;background:${bar};border-radius:99px"><div style="height:100%;width:${pct}%;background:${fill};border-radius:99px"></div></div>
+    </div>`;
+  }).join('');
+  
+  const gridCols=Math.min(d.months.length,4);
+  
+  return makePage(`
+    ${buildHeader(company)}
+    <div style="margin-bottom:4px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${BLUE};text-transform:uppercase;margin-bottom:4px">02 / VISÃO GERAL</div>
+      <h2 style="font-size:36px;font-weight:800;color:${DARK};letter-spacing:-1px;margin-bottom:2px">Sumário Executivo do Período</h2>
+      <p style="font-size:11px;color:${MUTED}">Indicadores consolidados de ${fmtDate(d.dataMin)} a ${fmtDate(d.dataMax)}</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div style="background:${GRAY};border-radius:12px;padding:20px 24px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${MUTED};text-transform:uppercase;margin-bottom:4px">CONSUMOS TOTAIS</div>
+        <div style="font-size:56px;font-weight:800;color:${BLUE};line-height:1">${d.totalConsumos}</div>
+      </div>
+      <div style="background:${GRAY};border-radius:12px;padding:20px 24px">
+        <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${MUTED};text-transform:uppercase;margin-bottom:4px">ALUNOS ATIVOS</div>
+        <div style="font-size:56px;font-weight:800;color:${DARK};line-height:1">${d.totalAlunos}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(${gridCols},1fr);gap:10px;flex:1">${monthCards}</div>
+    <div style="margin-top:12px">
+      ${buildFooter('02 / VISÃO GERAL','02',total)}
+    </div>
+  `);
+}
+
+function buildPage3(d,company,total){
+  const wks=d.weeks;const wkVals=wks.map(k=>d.weekMap[k]);
+  const maxVal=Math.max(...wkVals);
+  const barW=Math.max(4,Math.floor(680/Math.max(wks.length,1))-2);
+  const chartH=180;
+  const bars=wks.map((k,i)=>{
+    const v=wkVals[i];const h=Math.round(v/maxVal*chartH);
+    const isMax=k===d.maxWeek;
+    const x=i*(barW+2);
+    return `<rect x="${x}" y="${chartH-h}" width="${barW}" height="${h}" fill="${isMax?'#1a3de0':BLUE}" rx="2"/>
+      ${isMax?`<text x="${x+barW/2}" y="${chartH-h-4}" text-anchor="middle" font-size="9" fill="${BLUE}" font-weight="700">${v}</text>`:`<text x="${x+barW/2}" y="${chartH-h-3}" text-anchor="middle" font-size="8" fill="${MUTED}">${v}</text>`}`;
+  }).join('');
+  const svgW=(barW+2)*wks.length;
+  
+  const secondMonth=d.months.length>1?d.months[1]:null;
+  const insight1=`Pico em ${d.maxWeek.replace('|',' a ')}: ${d.weekMap[d.maxWeek]} consumos (${Math.round(d.weekMap[d.maxWeek]/d.totalConsumos*100)}% do total)`;
+  const insight2=secondMonth?`${monthLabel(d.maxMonth).toUpperCase()} foi o mês mais ativo: +${Math.round((d.monthMap[d.maxMonth]/d.monthMap[secondMonth]-1)*100)}% vs ${monthLabel(secondMonth).toLowerCase()}`:'Maior concentração no mês de '+monthLabel(d.maxMonth).toLowerCase();
+  
+  const accumRows=d.months.map(mk=>{
+    const pct=Math.round(d.monthMap[mk]/d.totalConsumos*100);
+    return `<div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+        <span style="font-size:11px;font-weight:700;color:${DARK};letter-spacing:.5px">${monthLabel(mk).toUpperCase()}</span>
+        <span style="font-size:22px;font-weight:800;color:${BLUE}">${d.monthMap[mk]}</span>
+      </div>
+      <div style="font-size:9px;color:${MUTED};margin-bottom:4px">${pct}% do total${mk===d.maxMonth?' · maior mês':''}</div>
+      <div style="height:2px;background:#e8eaf0;border-radius:99px"><div style="height:100%;width:${pct}%;background:${BLUE};border-radius:99px"></div></div>
+    </div>`;
+  }).join('');
+  
+  return makePage(`
+    ${buildHeader(company)}
+    <div style="margin-bottom:8px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${BLUE};text-transform:uppercase;margin-bottom:2px">03 / ANÁLISE TEMPORAL</div>
+      <h2 style="font-size:32px;font-weight:800;color:${DARK};letter-spacing:-1px">Consumo Semanal e Mensal</h2>
+      <p style="font-size:11px;color:${MUTED}">Evolução de consumos · Pico em ${d.maxWeek.replace('|',' a ')} com ${d.weekMap[d.maxWeek]} aulas</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 280px;gap:16px;flex:1;min-height:0">
+      <div style="background:${GRAY};border-radius:12px;padding:16px 20px;overflow:hidden">
+        <div style="font-size:10px;font-weight:700;color:${DARK};margin-bottom:2px">CONSUMO SEMANAL</div>
+        <div style="font-size:9px;color:${MUTED};margin-bottom:12px">${wks.length} semanas analisadas</div>
+        <div style="overflow:hidden">
+          <svg width="${Math.min(svgW,780)}" height="${chartH+20}" viewBox="0 0 ${Math.max(svgW,100)} ${chartH+20}" preserveAspectRatio="none" style="width:100%;height:${chartH+20}px">
+            <line x1="0" y1="${chartH}" x2="${svgW}" y2="${chartH}" stroke="${BORDER}" stroke-width="1"/>
+            ${bars}
+          </svg>
+        </div>
+      </div>
+      <div style="overflow-y:auto">
+        <div style="font-size:10px;font-weight:700;color:${DARK};margin-bottom:2px">ACUMULADO MENSAL</div>
+        <div style="font-size:9px;color:${MUTED};margin-bottom:12px">Distribuição por mês</div>
+        ${accumRows}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+      <div>
+        <div style="font-size:9px;font-weight:700;color:${BLUE};letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">INSIGHT 01</div>
+        <div style="font-size:11px;font-weight:600;color:${DARK}">${insight1}</div>
+      </div>
+      <div>
+        <div style="font-size:9px;font-weight:700;color:${BLUE};letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">INSIGHT 02</div>
+        <div style="font-size:11px;font-weight:600;color:${DARK}">${insight2}</div>
+      </div>
+    </div>
+    ${buildFooter('03 / ANÁLISE TEMPORAL','03',total)}
+  `);
+}
+
+function buildPage4(d,company,total){
+  function rankCards(mk){
+    const list=d.top3[mk];
+    const total_m=d.monthMap[mk];
+    const isMax=mk===d.maxMonth;
+    const lbl=isMax?`${total_m} consumos · PICO`:`${total_m} consumos`;
+    const lbl_c=isMax?BLUE:MUTED;
+    const cards=[];
+    if(list[0]){
+      cards.push(`<div style="background:${BLUE};border-radius:10px;padding:14px 16px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:9px;font-weight:700;color:rgba(255,255,255,.8);letter-spacing:1px;text-transform:uppercase">1º LUGAR</span>
+          <span style="background:rgba(255,255,255,.2);color:#fff;font-size:10px;font-weight:700;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center">01</span>
+        </div>
+        <div style="font-size:16px;font-weight:800;color:#fff;margin-bottom:6px">${list[0].nome}</div>
+        <div style="font-size:28px;font-weight:800;color:#fff;line-height:1">${list[0].count} <span style="font-size:11px;font-weight:500;opacity:.8">aulas</span></div>
+      </div>`);
+    }
+    if(list[1]){
+      cards.push(`<div style="background:${GRAY};border-radius:10px;padding:12px 16px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:8px;font-weight:700;color:${MUTED};letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">2º LUGAR</div><div style="font-size:13px;font-weight:700;color:${DARK}">${list[1].nome}</div></div>
+        <div style="font-size:16px;font-weight:800;color:${BLUE}">${list[1].count} <span style="font-size:10px;font-weight:500;color:${MUTED}">aulas</span></div>
+      </div>`);
+    }
+    if(list[2]){
+      cards.push(`<div style="background:${GRAY};border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:8px;font-weight:700;color:${MUTED};letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">3º LUGAR</div><div style="font-size:13px;font-weight:700;color:${DARK}">${list[2].nome}</div></div>
+        <div style="font-size:16px;font-weight:800;color:${BLUE}">${list[2].count} <span style="font-size:10px;font-weight:500;color:${MUTED}">aulas</span></div>
+      </div>`);
+    }
+    if(list.length<3){
+      cards.push(`<div style="background:${GRAY};border-radius:10px;padding:12px 16px;text-align:center;color:${MUTED};font-size:11px">Sem ${list.length<2?'2º e 3º':'3º'} lugar</div>`);
+    }
+    return `<div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:13px;font-weight:800;color:${DARK};letter-spacing:.5px">${monthLabel(mk).toUpperCase().split(' ')[0]}</span>
+        <span style="font-size:10px;font-weight:600;color:${lbl_c}">${lbl}</span>
+      </div>
+      ${cards.join('')}
+    </div>`;
+  }
+  
+  const showMonths=d.months.slice(0,3);
+  const gridCols=showMonths.length;
+  
+  return makePage(`
+    ${buildHeader(company)}
+    <div style="margin-bottom:12px">
+      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${BLUE};text-transform:uppercase;margin-bottom:2px">04 / RANKING POR MÊS</div>
+      <h2 style="font-size:32px;font-weight:800;color:${DARK};letter-spacing:-1px">Top 3 Alunos por Mês</h2>
+      <p style="font-size:11px;color:${MUTED}">Colaboradores com maior número de aulas consumidas por mês</p>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(${gridCols},1fr);gap:16px;flex:1">
+      ${showMonths.map(mk=>rankCards(mk)).join('')}
+    </div>
+    <div style="font-size:9px;color:${MUTED};padding-top:8px">Fonte: PipeLovers Education Platform · Período: ${fmtDate(d.dataMin)} - ${fmtDate(d.dataMax)} · Critério: todas as linhas da planilha</div>
+    ${buildFooter('04 / RANKING POR MÊS','04',total)}
+  `);
+}
+
+function buildPageDetail(students,part,totalParts,pageNum,totalPages,company,d){
+  const isLast=part===totalParts;
+  const studentCards=students.map(s=>{
+    const aulasList=s.aulas.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid #f0f2f8">
+      <span style="font-size:10px;color:${DARK};flex:1;padding-right:8px">${a.conteudo}</span>
+      <span style="font-size:10px;color:${BLUE};font-weight:600;white-space:nowrap">${fmtDate(a.data)}</span>
+    </div>`).join('');
+    return `<div style="border:1px solid ${BORDER};border-radius:10px;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:14px;font-weight:800;color:${DARK}">${s.nome}</span>
+        <div style="background:${BLUE};color:#fff;border-radius:6px;padding:2px 10px;text-align:center">
+          <div style="font-size:14px;font-weight:800;line-height:1.2">${s.total}</div>
+          <div style="font-size:7px;font-weight:600;letter-spacing:.5px;opacity:.85">AULAS</div>
+        </div>
+      </div>
+      ${aulasList}
+    </div>`;
+  }).join('');
+  
+  const cols=students.length>=3?2:students.length;
+  const halfLen=Math.ceil(students.length/2);
+  const col1=students.slice(0,halfLen);
+  const col2=students.slice(halfLen);
+  
+  const col1Cards=col1.map(s=>buildStudentCard(s)).join('');
+  const col2Cards=col2.map(s=>buildStudentCard(s)).join('');
+  
+  const footerSection=`05 / DETALHAMENTO INDIVIDUAL · PARTE ${String(part).padStart(2,'0')} DE ${String(totalParts).padStart(2,'0')}${isLast?' · ENCERRAMENTO':''}`;
+  
+  return makePage(`
+    ${buildHeader(company)}
+    <div style="margin-bottom:8px;flex-shrink:0">
+      <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${BLUE};text-transform:uppercase;margin-bottom:2px">${footerSection}</div>
+      <h2 style="font-size:28px;font-weight:800;color:${DARK};letter-spacing:-1px">Consumo Detalhado por Aluno</h2>
+      <p style="font-size:10px;color:${MUTED}">Listagem completa de aulas consumidas, com data de cada conteúdo</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;flex:1;overflow:hidden">
+      <div style="display:flex;flex-direction:column;gap:8px;overflow:hidden">${col1Cards}</div>
+      <div style="display:flex;flex-direction:column;gap:8px;overflow:hidden">${col2Cards}</div>
+    </div>
+    <div style="font-size:9px;color:${MUTED};padding-top:6px;display:flex;justify-content:space-between;flex-shrink:0">
+      <span>Detalhamento parte ${part} de ${totalParts} · ${students.length} alunos exibidos · Período ${fmtDate(d.dataMin)} - ${fmtDate(d.dataMax)}</span>
+      ${isLast?`<span style="font-weight:700;color:${DARK}">FIM · PipeLovers × ${company}</span>`:''}
+    </div>
+    ${buildFooter(footerSection,String(pageNum).padStart(2,'0'),totalPages)}
+  `);
+}
+
+function buildStudentCard(s){
+  const maxLines=12;
+  const show=s.aulas.slice(0,maxLines);
+  const remaining=s.aulas.length-maxLines;
+  const aulasList=show.map(a=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px solid #f5f6fa">
+    <span style="font-size:9.5px;color:${DARK};flex:1;padding-right:6px;line-height:1.3">${a.conteudo}</span>
+    <span style="font-size:9px;color:${BLUE};font-weight:600;white-space:nowrap">${fmtDate(a.data)}</span>
+  </div>`).join('');
+  return `<div style="border:1px solid ${BORDER};border-radius:8px;padding:10px 12px;flex-shrink:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <span style="font-size:12px;font-weight:800;color:${DARK};line-height:1.2">${s.nome}</span>
+      <div style="background:${BLUE};color:#fff;border-radius:5px;padding:2px 8px;text-align:center;flex-shrink:0;margin-left:8px">
+        <div style="font-size:12px;font-weight:800;line-height:1.2">${s.total}</div>
+        <div style="font-size:6px;font-weight:700;letter-spacing:.5px;opacity:.85">AULAS</div>
+      </div>
+    </div>
+    ${aulasList}
+    ${remaining>0?`<div style="font-size:9px;color:${MUTED};padding-top:4px;font-style:italic">+${remaining} aulas adicionais</div>`:''}
+  </div>`;
+}
+
+async function downloadPDF(){
+  const btn=document.getElementById('btn-dl');
+  btn.textContent='Gerando PDF...';btn.disabled=true;
+  setProgress(0,'Iniciando exportação...');
+  document.getElementById('progress-wrap').style.display='block';
+  
+  try{
+    const{jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'landscape',unit:'px',format:[1280,720]});
+    
+    for(let i=0;i<pdfPages.length;i++){
+      setProgress(Math.round((i/pdfPages.length)*90),'Renderizando página '+(i+1)+' de '+pdfPages.length+'...');
+      const inner=pdfPages[i].firstChild;
+      const scale=1280/inner.offsetWidth||1;
+      inner.style.transform='scale(1)';
+      const canvas=await html2canvas(inner,{scale:1.5,useCORS:true,logging:false,width:1280,height:720});
+      inner.style.transform=`scale(${pdfPages[i].offsetWidth/1280})`;
+      if(i>0)pdf.addPage([1280,720],'landscape');
+      pdf.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,1280,720);
+    }
+    
+    setProgress(98,'Salvando arquivo...');
+    await sleep(100);
+    const fname=`Relatorio_${companyName.replace(/\s+/g,'_')}_PipeLovers.pdf`;
+    pdf.save(fname);
+    setProgress(100,'PDF baixado com sucesso!');
+  }catch(err){
+    alert('Erro ao gerar PDF: '+err.message);
+    console.error(err);
+  }
+  
+  btn.innerHTML='<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v8m0 0l-3-3m3 3l3-3M2 12h12" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Baixar PDF';
+  btn.disabled=false;
+}
+
+window.addEventListener('resize',()=>{pdfPages.forEach(p=>scalePageEl(p));});
+</script>
