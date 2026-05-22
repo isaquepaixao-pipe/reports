@@ -1,4 +1,3 @@
-
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'DM Sans',sans-serif;background:#f8f9fc;min-height:100vh}
@@ -145,13 +144,18 @@ function readFile(f){
   reader.onload=function(ev){
     try{
       const data=new Uint8Array(ev.target.result);
-      const wb=XLSX.read(data,{type:'array'});
-      const ws=wb.Sheets[wb.SheetNames[0]];
-      let rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
-      // detect separator for CSV-like
-      if(f.name.endsWith('.csv')){
-        const raw=new TextDecoder('utf-8').decode(data);
-        rows=parseCSVSemicolon(raw);
+      let rows;
+      if(f.name.toLowerCase().endsWith('.csv')){
+        const raw=new TextDecoder('utf-8').decode(data).replace(/^\uFEFF/,'');
+        // auto-detect separator: count semicolons vs commas in first line
+        const firstLine=raw.split('\n')[0]||'';
+        const semis=(firstLine.match(/;/g)||[]).length;
+        const commas=(firstLine.match(/,/g)||[]).length;
+        rows=semis>=commas?parseCSVCustom(raw,';'):parseCSVCustom(raw,',');
+      } else {
+        const wb=XLSX.read(data,{type:'array'});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       }
       parsedData=processRows(rows);
       checkReady();
@@ -160,17 +164,17 @@ function readFile(f){
   reader.readAsArrayBuffer(f);
 }
 
-function parseCSVSemicolon(raw){
+function parseCSVCustom(raw,sep){
   const lines=raw.split('\n').filter(l=>l.trim());
   return lines.map(line=>{
     const cols=[];let cur='',inQ=false;
     for(let i=0;i<line.length;i++){
       const c=line[i];
       if(c==='"'){inQ=!inQ;}
-      else if(c===';'&&!inQ){cols.push(cur.trim());cur='';}
+      else if(c===sep&&!inQ){cols.push(cur.trim().replace(/^"|"$/g,''));cur='';}
       else cur+=c;
     }
-    cols.push(cur.trim());
+    cols.push(cur.trim().replace(/^"|"$/g,'').replace(/\r$/,''));
     return cols;
   });
 }
@@ -428,23 +432,37 @@ function buildPage2(d,company,total){
 }
 
 function buildPage3(d,company,total){
-  const wks=d.weeks;const wkVals=wks.map(k=>d.weekMap[k]);
+  const wks=d.weeks;
+  const wkVals=wks.map(k=>d.weekMap[k]);
   const maxVal=Math.max(...wkVals);
-  const barW=Math.max(4,Math.floor(680/Math.max(wks.length,1))-2);
-  const chartH=180;
+
+  // SVG layout: fixed viewBox so bars never overflow
+  const labelTopPad=16;  // space above bars for value labels
+  const chartH=150;      // bar area height
+  const xLabelH=52;      // rotated X labels below baseline
+  const svgInnerW=760;
+  const barStep=Math.floor(svgInnerW/Math.max(wks.length,1));
+  const barW=Math.max(4,barStep-3);
+  const totalSvgH=labelTopPad+chartH+xLabelH;
+
   const bars=wks.map((k,i)=>{
-    const v=wkVals[i];const h=Math.round(v/maxVal*chartH);
+    const v=wkVals[i];
+    const h=Math.round(v/maxVal*chartH);
     const isMax=k===d.maxWeek;
-    const x=i*(barW+2);
-    return `<rect x="${x}" y="${chartH-h}" width="${barW}" height="${h}" fill="${isMax?'#1a3de0':BLUE}" rx="2"/>
-      ${isMax?`<text x="${x+barW/2}" y="${chartH-h-4}" text-anchor="middle" font-size="9" fill="${BLUE}" font-weight="700">${v}</text>`:`<text x="${x+barW/2}" y="${chartH-h-3}" text-anchor="middle" font-size="8" fill="${MUTED}">${v}</text>`}`;
+    const cx=i*barStep+barW/2;
+    const barY=labelTopPad+chartH-h;
+    const baselineY=labelTopPad+chartH;
+    const dateStr=k.split('|')[0].slice(0,5);
+    const labelAnchorY=baselineY+8;
+    return `<rect x="${i*barStep}" y="${barY}" width="${barW}" height="${h}" fill="${isMax?'#1a3de0':BLUE}" rx="2"/>
+      <text x="${cx}" y="${barY-4}" text-anchor="middle" font-size="${isMax?9:8}" fill="${isMax?BLUE:MUTED}" font-weight="${isMax?700:400}">${v}</text>
+      <text x="${cx}" y="${labelAnchorY}" text-anchor="end" font-size="8" fill="${isMax?BLUE:MUTED}" font-weight="${isMax?700:400}" transform="rotate(-45,${cx},${labelAnchorY})">${dateStr}</text>`;
   }).join('');
-  const svgW=(barW+2)*wks.length;
-  
+
   const secondMonth=d.months.length>1?d.months[1]:null;
   const insight1=`Pico em ${d.maxWeek.replace('|',' a ')}: ${d.weekMap[d.maxWeek]} consumos (${Math.round(d.weekMap[d.maxWeek]/d.totalConsumos*100)}% do total)`;
   const insight2=secondMonth?`${monthLabel(d.maxMonth).toUpperCase()} foi o mês mais ativo: +${Math.round((d.monthMap[d.maxMonth]/d.monthMap[secondMonth]-1)*100)}% vs ${monthLabel(secondMonth).toLowerCase()}`:'Maior concentração no mês de '+monthLabel(d.maxMonth).toLowerCase();
-  
+
   const accumRows=d.months.map(mk=>{
     const pct=Math.round(d.monthMap[mk]/d.totalConsumos*100);
     return `<div style="margin-bottom:12px">
@@ -456,32 +474,32 @@ function buildPage3(d,company,total){
       <div style="height:2px;background:#e8eaf0;border-radius:99px"><div style="height:100%;width:${pct}%;background:${BLUE};border-radius:99px"></div></div>
     </div>`;
   }).join('');
-  
+
   return makePage(`
     ${buildHeader(company)}
-    <div style="margin-bottom:8px">
+    <div style="margin-bottom:8px;flex-shrink:0">
       <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;color:${BLUE};text-transform:uppercase;margin-bottom:2px">03 / ANÁLISE TEMPORAL</div>
       <h2 style="font-size:32px;font-weight:800;color:${DARK};letter-spacing:-1px">Consumo Semanal e Mensal</h2>
       <p style="font-size:11px;color:${MUTED}">Evolução de consumos · Pico em ${d.maxWeek.replace('|',' a ')} com ${d.weekMap[d.maxWeek]} aulas</p>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 280px;gap:16px;flex:1;min-height:0">
-      <div style="background:${GRAY};border-radius:12px;padding:16px 20px;overflow:hidden">
-        <div style="font-size:10px;font-weight:700;color:${DARK};margin-bottom:2px">CONSUMO SEMANAL</div>
-        <div style="font-size:9px;color:${MUTED};margin-bottom:12px">${wks.length} semanas analisadas</div>
-        <div style="overflow:hidden">
-          <svg width="${Math.min(svgW,780)}" height="${chartH+20}" viewBox="0 0 ${Math.max(svgW,100)} ${chartH+20}" preserveAspectRatio="none" style="width:100%;height:${chartH+20}px">
-            <line x1="0" y1="${chartH}" x2="${svgW}" y2="${chartH}" stroke="${BORDER}" stroke-width="1"/>
+    <div style="display:grid;grid-template-columns:1fr 272px;gap:16px;flex:1;min-height:0;overflow:hidden">
+      <div style="background:${GRAY};border-radius:12px;padding:14px 18px;display:flex;flex-direction:column;overflow:hidden">
+        <div style="font-size:10px;font-weight:700;color:${DARK};margin-bottom:1px;flex-shrink:0">CONSUMO SEMANAL</div>
+        <div style="font-size:9px;color:${MUTED};margin-bottom:8px;flex-shrink:0">${wks.length} semanas analisadas</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:0">
+          <svg viewBox="0 0 ${svgInnerW} ${totalSvgH}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block;max-height:240px;">
+            <line x1="0" y1="${labelTopPad+chartH}" x2="${svgInnerW}" y2="${labelTopPad+chartH}" stroke="${BORDER}" stroke-width="1"/>
             ${bars}
           </svg>
         </div>
       </div>
-      <div style="overflow-y:auto">
-        <div style="font-size:10px;font-weight:700;color:${DARK};margin-bottom:2px">ACUMULADO MENSAL</div>
-        <div style="font-size:9px;color:${MUTED};margin-bottom:12px">Distribuição por mês</div>
+      <div style="overflow-y:auto;padding-right:4px">
+        <div style="font-size:10px;font-weight:700;color:${DARK};margin-bottom:1px">ACUMULADO MENSAL</div>
+        <div style="font-size:9px;color:${MUTED};margin-bottom:10px">Distribuição por mês</div>
         ${accumRows}
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;flex-shrink:0">
       <div>
         <div style="font-size:9px;font-weight:700;color:${BLUE};letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">INSIGHT 01</div>
         <div style="font-size:11px;font-weight:600;color:${DARK}">${insight1}</div>
@@ -494,7 +512,6 @@ function buildPage3(d,company,total){
     ${buildFooter('03 / ANÁLISE TEMPORAL','03',total)}
   `);
 }
-
 function buildPage4(d,company,total){
   function rankCards(mk){
     const list=d.top3[mk];
