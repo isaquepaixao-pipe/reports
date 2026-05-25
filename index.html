@@ -46,6 +46,9 @@ body{font-family:'DM Sans',sans-serif;background:#f8f9fc;min-height:100vh}
 .btn-download{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:#0a1628;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;transition:background .2s;font-family:'DM Sans',sans-serif;margin-bottom:1rem}
 .btn-download:hover{background:#1a2a4a}
 .tip{background:#f0f3ff;border-radius:10px;padding:12px 16px;font-size:13px;color:#3355ff;font-weight:500;margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.date-range-group{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.date-hint{background:#f0f3ff;border-radius:8px;padding:8px 12px;font-size:12px;color:#3355ff;font-weight:500;margin-top:6px;display:none}
+.date-hint.visible{display:block}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -89,6 +92,22 @@ body{font-family:'DM Sans',sans-serif;background:#f8f9fc;min-height:100vh}
     <p class="form-sub">Aparecerá no topo de cada slide e na capa do PDF.</p>
   </div>
 
+  <div class="form-group">
+    <label class="form-label">Período do relatório</label>
+    <div class="date-range-group">
+      <div>
+        <label class="form-sub" style="display:block;margin-bottom:4px;font-weight:600;color:#0a1628">De</label>
+        <input type="text" class="form-input" id="date-from" placeholder="DD/MM/AAAA" maxlength="10" oninput="maskDate(this);checkReady()">
+      </div>
+      <div>
+        <label class="form-sub" style="display:block;margin-bottom:4px;font-weight:600;color:#0a1628">Até</label>
+        <input type="text" class="form-input" id="date-to" placeholder="DD/MM/AAAA" maxlength="10" oninput="maskDate(this);checkReady()">
+      </div>
+    </div>
+    <div class="date-hint" id="date-hint"></div>
+    <p class="form-sub">Somente aulas consumidas neste intervalo serão incluídas no relatório.</p>
+  </div>
+
   <button class="btn-generate" id="btn-gen" disabled onclick="generateReport()">Gerar relatório</button>
 
   <div class="progress-wrap" id="progress-wrap">
@@ -112,7 +131,7 @@ body{font-family:'DM Sans',sans-serif;background:#f8f9fc;min-height:100vh}
 
 <script>
 const BLUE='#3355ff',DARK='#0a1628',GRAY='#f5f6fa',MUTED='#8892a4',BORDER='#e8eaf0';
-let parsedData=null, companyName='', pdfPages=[];
+let rawRecords=null, parsedData=null, companyName='', pdfPages=[];
 
 document.getElementById('file-input').addEventListener('change',function(e){
   const f=e.target.files[0];if(!f)return;
@@ -136,7 +155,10 @@ document.getElementById('company-name').addEventListener('input',checkReady);
 
 function checkReady(){
   const cn=document.getElementById('company-name').value.trim();
-  document.getElementById('btn-gen').disabled=!(parsedData&&cn);
+  const df=document.getElementById('date-from').value.trim();
+  const dt=document.getElementById('date-to').value.trim();
+  const ready=rawRecords&&cn&&parseDate(df)&&parseDate(dt);
+  document.getElementById('btn-gen').disabled=!ready;
 }
 
 function readFile(f){
@@ -157,7 +179,17 @@ function readFile(f){
         const ws=wb.Sheets[wb.SheetNames[0]];
         rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
       }
-      parsedData=processRows(rows);
+      rawRecords=extractRecords(rows);
+      if(!rawRecords.length) throw new Error('Nenhuma linha válida encontrada');
+      // Auto-fill date range from file
+      const datas=rawRecords.map(r=>r.data).sort((a,b)=>a-b);
+      const dMin=datas[0], dMax=datas[datas.length-1];
+      document.getElementById('date-from').value=fmtDateBR(dMin);
+      document.getElementById('date-to').value=fmtDateBR(dMax);
+      const hint=document.getElementById('date-hint');
+      hint.textContent='Planilha contém dados de '+fmtDateBR(dMin)+' a '+fmtDateBR(dMax)+' ('+rawRecords.length+' linhas válidas). Ajuste o período se necessário.';
+      hint.classList.add('visible');
+      parsedData=null; // will be computed on generate
       checkReady();
     }catch(err){alert('Erro ao ler arquivo: '+err.message);}
   };
@@ -181,15 +213,23 @@ function parseCSVCustom(raw,sep){
 
 function parseDate(s){
   if(!s||s==='-'||s==='')return null;
-  const m=String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  // Accept DD/MM/YYYY or DD/MM/YYYY HH:MM or DD/MM/YYYY HH:MM:SS
+  const m=String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if(!m)return null;
   return new Date(parseInt(m[3]),parseInt(m[2])-1,parseInt(m[1]));
 }
-
-function fmtDate(d){
+function fmtDateBR(d){
   if(!d)return '';
   return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
 }
+function maskDate(el){
+  let v=el.value.replace(/\D/g,'');
+  if(v.length>4)v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4,8);
+  else if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2);
+  el.value=v;
+}
+
+function fmtDate(d){ return fmtDateBR(d); }
 
 function monthKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 function monthLabel(k){
@@ -206,16 +246,28 @@ function weekKey(d){
   return fmtDate(sun)+'|'+fmtDate(sat);
 }
 
-function processRows(rows){
+function extractRecords(rows){
   if(!rows||rows.length<2)throw new Error('Planilha vazia');
-  const hdr=rows[0].map(h=>String(h).trim().replace(/^\uFEFF/,''));
+  const hdr=rows[0].map(h=>String(h).trim().replace(/^﻿/,''));
   const idx=n=>hdr.findIndex(h=>h.toLowerCase()===n.toLowerCase());
-  const iNome=idx('Nome'),iEmail=idx('Email'),iConteudo=idx('Conteúdo'),iData=idx('Data da compra');
-  if(iNome<0||iEmail<0||iConteudo<0||iData<0)throw new Error('Colunas não encontradas. Verifique: Nome, Email, Conteúdo, Data da compra');
-  
+
+  // Support both old format (Nome/Email/Conteúdo/Data da compra) and new (Nome/Email/Conteúdo/Data)
+  const iNome=idx('Nome');
+  const iEmail=idx('Email');
+  const iConteudo=idx('Conteúdo')<0?idx('Conteudo'):idx('Conteúdo');
+  const iData=idx('Data')<0?idx('Data da compra'):idx('Data');
+  const iEvento=idx('Evento');
+
+  if(iNome<0||iEmail<0||iConteudo<0||iData<0){
+    const found=hdr.join(', ');
+    throw new Error('Colunas não encontradas. Colunas detectadas: '+found+'. Necessárias: Nome, Email, Conteúdo, Data (ou Data da compra)');
+  }
+
   const records=[];
   for(let i=1;i<rows.length;i++){
     const r=rows[i];
+    // Se coluna Evento existe, aceitar apenas linhas com valor "Matrícula"
+    if(iEvento>=0&&String(r[iEvento]||'').trim().toLowerCase()!=='matrícula')continue;
     const email=String(r[iEmail]||'').trim().toLowerCase();
     const nome=String(r[iNome]||'').trim();
     const conteudo=String(r[iConteudo]||'').trim();
@@ -224,8 +276,12 @@ function processRows(rows){
     if(!email||!data)continue;
     records.push({email,nome,conteudo,data});
   }
-  if(!records.length)throw new Error('Nenhuma linha válida encontrada');
-  
+  return records;
+}
+
+function processRecords(records){
+  if(!records||!records.length)throw new Error('Nenhum registro no período selecionado');
+
   // Metrics
   const totalConsumos=records.length;
   const emailMap={};
@@ -233,32 +289,35 @@ function processRows(rows){
   const totalAlunos=Object.keys(emailMap).length;
   const datas=records.map(r=>r.data).sort((a,b)=>a-b);
   const dataMin=datas[0],dataMax=datas[datas.length-1];
-  
+
   // Monthly
   const monthMap={};
   records.forEach(r=>{const k=monthKey(r.data);if(!monthMap[k])monthMap[k]=0;monthMap[k]++;});
   const months=Object.keys(monthMap).sort();
   const maxMonth=months.reduce((a,b)=>monthMap[a]>=monthMap[b]?a:b);
-  
+
   // Weekly
   const weekMap={};
   records.forEach(r=>{const k=weekKey(r.data);if(!weekMap[k])weekMap[k]=0;weekMap[k]++;});
   const weeks=Object.keys(weekMap).sort((a,b)=>{const da=parseDate(a.split('|')[0]),db=parseDate(b.split('|')[0]);return da-db;});
   const maxWeek=weeks.reduce((a,b)=>weekMap[a]>=weekMap[b]?a:b);
-  
+
   // Top 3 by month
-  const top3={}; 
+  const top3={};
   months.forEach(mk=>{
     const byEmail={};
     records.filter(r=>monthKey(r.data)===mk).forEach(r=>{if(!byEmail[r.email])byEmail[r.email]={nome:r.nome,count:0};byEmail[r.email].count++;});
     top3[mk]=Object.entries(byEmail).map(([e,v])=>({email:e,...v})).sort((a,b)=>b.count-a.count).slice(0,3);
   });
-  
+
   // Students sorted by total
   const students=Object.entries(emailMap).map(([email,v])=>({email,nome:v.nome,aulas:v.aulas.sort((a,b)=>a.data-b.data),total:v.aulas.length})).sort((a,b)=>b.total-a.total);
-  
+
   return{totalConsumos,totalAlunos,dataMin,dataMax,months,monthMap,maxMonth,weeks,weekMap,maxWeek,top3,students};
 }
+
+// Keep processRows for backwards compat (not used anymore)
+function processRows(rows){ return processRecords(extractRecords(rows)); }
 
 function setProgress(pct,msg){
   document.getElementById('progress-fill').style.width=pct+'%';
@@ -266,8 +325,18 @@ function setProgress(pct,msg){
 }
 
 async function generateReport(){
-  if(!parsedData)return;
+  if(!rawRecords)return;
   companyName=document.getElementById('company-name').value.trim();
+  const dfStr=document.getElementById('date-from').value.trim();
+  const dtStr=document.getElementById('date-to').value.trim();
+  const dfDate=parseDate(dfStr);
+  const dtDate=parseDate(dtStr);
+  if(!dfDate||!dtDate){alert('Preencha as datas de início e fim do período.');return;}
+  // Set dtDate to end of day for inclusive filtering
+  dtDate.setHours(23,59,59,999);
+  const filtered=rawRecords.filter(r=>r.data>=dfDate&&r.data<=dtDate);
+  if(!filtered.length){alert('Nenhum registro encontrado no período selecionado. Verifique as datas.');return;}
+  try{ parsedData=processRecords(filtered); }catch(e){alert(e.message);return;}
   document.getElementById('progress-wrap').style.display='block';
   document.getElementById('report-pages').style.display='none';
   document.getElementById('btn-gen').disabled=true;
