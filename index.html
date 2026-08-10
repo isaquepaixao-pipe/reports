@@ -64,7 +64,13 @@ body{font-family:'DM Sans',sans-serif;background:#f8f9fc;min-height:100vh}
       </svg>
       <span class="logo-text">PIPELOVERS</span>
     </div>
-    <span class="badge">Relatório Enterprise</span>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span class="badge">Relatório Enterprise</span>
+      <a href="https://scribehow.com/o/qm4UXQAJSsiojMpT3-dtgg/viewer/Como_gerar_relatorio_de_consumo__HqUPPGWVSDeFOQ0QXPM8lw" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:#f0f3ff;color:#3355ff;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;letter-spacing:.3px;transition:background .2s" onmouseover="this.style.background='#dde4ff'" onmouseout="this.style.background='#f0f3ff'">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="#3355ff" stroke-width="1.3"/><path d="M7 10V9M7 4.5C7 4.5 8.5 4.5 8.5 6C8.5 7 7 7.5 7 8" stroke="#3355ff" stroke-width="1.3" stroke-linecap="round"/></svg>
+        Preciso de Ajuda
+      </a>
+    </div>
   </div>
 
   <div class="hero">
@@ -251,16 +257,18 @@ function extractRecords(rows){
   const hdr=rows[0].map(h=>String(h).trim().replace(/^﻿/,''));
   const idx=n=>hdr.findIndex(h=>h.toLowerCase()===n.toLowerCase());
 
-  // Support both old format (Nome/Email/Conteúdo/Data da compra) and new (Nome/Email/Conteúdo/Data)
+  // Suporta múltiplos formatos de exportação
   const iNome=idx('Nome');
   const iEmail=idx('Email');
-  const iConteudo=idx('Conteúdo')<0?idx('Conteudo'):idx('Conteúdo');
-  const iData=idx('Data')<0?idx('Data da compra'):idx('Data');
+  // Conteúdo: tenta 'Nome da aula' (novo), depois 'Conteúdo'/'Conteudo' (antigos)
+  const iConteudo=idx('Nome da aula')>=0?idx('Nome da aula'):(idx('Conteúdo')>=0?idx('Conteúdo'):idx('Conteudo'));
+  // Data: tenta 'Data de conclusão' (novo), depois 'Data', depois 'Data da compra' (antigos)
+  const iData=idx('Data de conclusão')>=0?idx('Data de conclusão'):(idx('Data')>=0?idx('Data'):idx('Data da compra'));
   const iEvento=idx('Evento');
 
   if(iNome<0||iEmail<0||iConteudo<0||iData<0){
     const found=hdr.join(', ');
-    throw new Error('Colunas não encontradas. Colunas detectadas: '+found+'. Necessárias: Nome, Email, Conteúdo, Data (ou Data da compra)');
+    throw new Error('Colunas não encontradas. Colunas detectadas: '+found+'. Necessárias: Nome, Email, Nome da aula (ou Conteúdo), Data de conclusão (ou Data da compra)');
   }
 
   const records=[];
